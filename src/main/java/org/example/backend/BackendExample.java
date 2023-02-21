@@ -1,21 +1,38 @@
 package org.example.backend;
 
-import reactor.core.publisher.Mono;
-import reactor.netty.DisposableServer;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.http.server.HttpServer;
+import com.sun.net.httpserver.HttpServer;
+
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 
 public class BackendExample {
-    public static void main(String[] args) {
-        DisposableServer server = HttpServer.create()
-                .route(r -> r.get("/test", (req, res) -> res.sendString(Mono.just("test"))))
-                .bindNow();
+    public static void main(String[] args) throws Throwable {
+        HttpServer server = HttpServer.create()
+                .createContext("/test", exchange -> {
+                    String response = "response";
+                    exchange.sendResponseHeaders(200, response.length());
+                    exchange.getResponseBody().write(response.getBytes(StandardCharsets.UTF_8));
+                })
+                .getServer();
 
-        HttpClient httpClient = HttpClient.create().baseUrl("http://localhost:" + server.port());
+        server.bind(new InetSocketAddress(8080), 0);
+        server.start();
 
-        String test = httpClient.get().uri("/test").responseContent().aggregate().asString().block();
-        System.out.println(test); // "test"
+        int port = server.getAddress().getPort();
 
-        server.disposeNow();
+        String body = HttpClient.newHttpClient().send(HttpRequest.newBuilder()
+                                .GET()
+                                .uri(URI.create("http://localhost:" + port + "/test"))
+                                .build(),
+                        HttpResponse.BodyHandlers.ofString())
+                .body();
+
+        System.out.println(body); // "response"
+
+        server.stop(0);
     }
 }
