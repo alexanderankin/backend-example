@@ -1,21 +1,44 @@
 package org.example.backend;
 
-import reactor.core.publisher.Mono;
-import reactor.netty.DisposableServer;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.http.server.HttpServer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
+@SpringBootApplication
 public class BackendExample {
     public static void main(String[] args) {
-        DisposableServer server = HttpServer.create()
-                .route(r -> r.get("/test", (req, res) -> res.sendString(Mono.just("test"))))
-                .bindNow();
+        // set random port on startup, defaults to 8080
+        System.setProperty("server.port", "0");
+        SpringApplication.run(BackendExample.class, args);
+    }
 
-        HttpClient httpClient = HttpClient.create().baseUrl("http://localhost:" + server.port());
+    @Autowired
+    Environment environment;
 
-        String test = httpClient.get().uri("/test").responseContent().aggregate().asString().block();
-        System.out.println(test); // "test"
+    // this could have actually gone right inside the main method; it's in a method for easy removal
+    @Bean
+    ApplicationRunner applicationRunner() {
+        return args -> {
+            RestTemplate restTemplate = new RestTemplateBuilder()
+                    .rootUri("http://localhost:" + environment.getProperty("local.server.port")) // "lsp" is special value for reading the random port
+                    .build();
+            String responseBody = restTemplate.getForObject("/", String.class);
+            System.out.println(responseBody); // world
+        };
+    }
 
-        server.disposeNow();
+    @RestController
+    public static class ExampleController {
+        @GetMapping
+        String hi() {
+            return "world";
+        }
     }
 }

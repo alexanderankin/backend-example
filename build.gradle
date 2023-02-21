@@ -13,5 +13,5 @@ java {
 repositories.mavenCentral()
 
 dependencies {
-    implementation('io.projectreactor.netty:reactor-netty:1.0.18')
+    implementation('org.springframework.boot:spring-boot-starter-web:2.7.8')
 }
